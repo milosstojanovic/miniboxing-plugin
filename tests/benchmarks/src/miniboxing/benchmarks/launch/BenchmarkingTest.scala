@@ -17,6 +17,7 @@ object BenchmarkingTest extends ScalameterBenchTest
                            with HardcodedMiniboxingSimple_JavaRT_3 // new Java runtime
                            with HardcodedMiniboxingDispatcherBenchTest
                            with HardcodedMiniboxingDispatcherBenchTestCL
+                           with HardcodedMiniboxingTuplesTest
                            with IdealBenchTest
                            with Serializable{
 
@@ -51,7 +52,7 @@ object BenchmarkingTest extends ScalameterBenchTest
 
   // run the tests:
   testIdeal()
-  testHardcodedMiniboxingDispatch(false)
+  /** testHardcodedMiniboxingDispatch(false)
   testHardcodedMiniboxingDispatch(true)
   testHardcodedMiniboxingDispatchClassLoader(false)
   testHardcodedMiniboxingDispatchClassLoader(true)
@@ -75,6 +76,8 @@ object BenchmarkingTest extends ScalameterBenchTest
   testHardcodedMiniboxingSimple_JavaRT_2(true)
   testHardcodedMiniboxingSimple_JavaRT_3(false)
   testHardcodedMiniboxingSimple_JavaRT_3(true)
+ */ 
+  testHardcodedMiniboxingTuples()
   testSpecialized(false)
   testSpecialized(true)
   testGeneric(false)
