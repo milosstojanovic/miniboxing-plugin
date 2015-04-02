@@ -1,18 +1,25 @@
 [Now checking: minibox-inject]
+[Now checking: minibox-bridge]
 [Not checkable: minibox-coerce]
+Miniboxing plugin warning: Optimizing `MbArray` is only possible if you allow the plugin to use both long and double encodings (remove `P:minibox:Yone-way` compiler option). `MbArray`-s will be generic and will box.
 [[syntax trees at end of            minibox-commit]] // newSource1.scala
 package miniboxing.tests.compile {
   abstract trait VerifyArrayOps[@miniboxed T] extends Object {
     <stable> <accessor> def x(): Array[T];
+    <stable> <accessor> def x_J(T_TypeTag: Byte): Array[T];
     def reverse(): Unit;
-    def reverse_J(T_TypeTag: Byte): Unit;
-    <stable> <accessor> def x_J(T_TypeTag: Byte): Array[T]
+    def reverse_J(T_TypeTag: Byte): Unit
   };
   class VerifyArrayOps_J[Tsp] extends Object with miniboxing.tests.compile.VerifyArrayOps[Tsp] {
+    <paramaccessor> private[this] val miniboxing|tests|compile|VerifyArrayOps_J|T_TypeTag: Byte = _;
+    implicit <synthetic> <paramaccessor> private[this] val evidence$1: scala.reflect.Manifest[Tsp] = _;
     def <init>(miniboxing|tests|compile|VerifyArrayOps_J|T_TypeTag: Byte, evidence$1: scala.reflect.Manifest[Tsp]): miniboxing.tests.compile.VerifyArrayOps_J[Tsp] = {
       VerifyArrayOps_J.super.<init>();
       ()
     };
+    private[this] val x: Array[Tsp] = MiniboxArray.this.mbarray_new[Tsp](10, VerifyArrayOps_J.this.miniboxing|tests|compile|VerifyArrayOps_J|T_TypeTag).asInstanceOf[Array[Tsp]]();
+    <stable> <accessor> def x(): Array[Tsp] = VerifyArrayOps_J.this.x_J(VerifyArrayOps_J.this.miniboxing|tests|compile|VerifyArrayOps_J|T_TypeTag);
+    <stable> <accessor> def x_J(T_TypeTag: Byte): Array[Tsp] = VerifyArrayOps_J.this.x;
     def reverse(): Unit = VerifyArrayOps_J.this.reverse_J(VerifyArrayOps_J.this.miniboxing|tests|compile|VerifyArrayOps_J|T_TypeTag);
     def reverse_J(T_TypeTag: Byte): Unit = {
       var i: Int = 0;
@@ -33,18 +40,17 @@ package miniboxing.tests.compile {
         else
           ()
       }
-    };
-    implicit <synthetic> <paramaccessor> private[this] val evidence$1: scala.reflect.Manifest[Tsp] = _;
-    <paramaccessor> private[this] val miniboxing|tests|compile|VerifyArrayOps_J|T_TypeTag: Byte = _;
-    private[this] val x: Array[Tsp] = MiniboxArray.this.mbarray_new[Tsp](10, VerifyArrayOps_J.this.miniboxing|tests|compile|VerifyArrayOps_J|T_TypeTag).asInstanceOf[Array[Tsp]]();
-    <stable> <accessor> def x(): Array[Tsp] = VerifyArrayOps_J.this.x_J(VerifyArrayOps_J.this.miniboxing|tests|compile|VerifyArrayOps_J|T_TypeTag);
-    <stable> <accessor> def x_J(T_TypeTag: Byte): Array[Tsp] = VerifyArrayOps_J.this.x
+    }
   };
   class VerifyArrayOps_L[Tsp] extends Object with miniboxing.tests.compile.VerifyArrayOps[Tsp] {
+    implicit <synthetic> <paramaccessor> private[this] val evidence$1: scala.reflect.Manifest[Tsp] = _;
     def <init>(evidence$1: scala.reflect.Manifest[Tsp]): miniboxing.tests.compile.VerifyArrayOps_L[Tsp] = {
       VerifyArrayOps_L.super.<init>();
       ()
     };
+    private[this] val x: Array[Tsp] = VerifyArrayOps_L.this.evidence$1.newArray(10);
+    <stable> <accessor> def x(): Array[Tsp] = VerifyArrayOps_L.this.x;
+    <stable> <accessor> def x_J(T_TypeTag: Byte): Array[Tsp] = VerifyArrayOps_L.this.x();
     def reverse(): Unit = {
       var i: Int = 0;
       var j: Int = VerifyArrayOps_L.this.x().length().-(1);
@@ -65,11 +71,7 @@ package miniboxing.tests.compile {
           ()
       }
     };
-    def reverse_J(T_TypeTag: Byte): Unit = VerifyArrayOps_L.this.reverse();
-    implicit <synthetic> <paramaccessor> private[this] val evidence$1: scala.reflect.Manifest[Tsp] = _;
-    private[this] val x: Array[Tsp] = VerifyArrayOps_L.this.evidence$1.newArray(10);
-    <stable> <accessor> def x(): Array[Tsp] = VerifyArrayOps_L.this.x;
-    <stable> <accessor> def x_J(T_TypeTag: Byte): Array[Tsp] = VerifyArrayOps_L.this.x()
+    def reverse_J(T_TypeTag: Byte): Unit = VerifyArrayOps_L.this.reverse()
   }
 }
 [Now checking: minibox-commit]

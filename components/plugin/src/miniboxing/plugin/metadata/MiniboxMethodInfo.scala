@@ -5,7 +5,7 @@
 //  /    Y    \|  ||   |  \|  | | \_\ \(  <_> ) >    < |  ||   |  \ / /_/  >
 //  \____|__  /|__||___|  /|__| |___  / \____/ /__/\_ \|__||___|  / \___  /
 //          \/          \/          \/               \/         \/ /_____/
-// Copyright (c) 2012-2014 Scala Team, École polytechnique fédérale de Lausanne
+// Copyright (c) 2011-2015 Scala Team, École polytechnique fédérale de Lausanne
 //
 // Authors:
 //    * Iulian Dragos
@@ -36,8 +36,20 @@ trait MiniboxMethodInfo {
    * This class should be extended by various classes containing information
    * about different types of methods that are created during specialization.
    */
-  sealed class MethodInfo
+  sealed abstract class MethodInfo {
+    def isTag = this match {
+      case _: Tag => true
+      case _      => false
+    }
+    private[this] var _isOverride = false
+    def isOverride = _isOverride
+    def asOverride: this.type = { _isOverride = true; this }
+  }
 
+  /**
+   * Marker trait for tags
+   */
+  trait Tag
 
   /**
    * The symbol with this information needs a body that forwards
@@ -48,25 +60,9 @@ trait MiniboxMethodInfo {
   case class ForwardTo(base: Symbol)(overrider: Boolean) extends MethodInfo {
     override def toString =
       if (overrider)
-        "is an override which forwards to the specialized member"
+        s"is an override which forwards to the specialized member" // $base"
       else
-        "is a forwarder to the specialized member"
-  }
-
-  /**
-   * For the following example:
-   *
-   *  class IntFun extends Function1[Int, Int] {
-   *    def apply(x: Int): Int = ..
-   *  }
-   *
-   *  method `apply` will have type `(Any)Any` and we want in fact to override
-   *  `apply$mcII$sp` of type `(Int)Int`, and `apply` will forward to it.
-   *
-   *  So, if the symbol is `apply`, the `method` will be `apply$mcII$sp`.
-   */
-  case class OverrideOfSpecializedMethod(method: Symbol) extends MethodInfo {
-    override def toString = "is the override of a specialized method: " + method
+        s"is a forwarder to the specialized member" // $base"
   }
 
   /**
@@ -101,7 +97,7 @@ trait MiniboxMethodInfo {
    * When the newly introduced symbol is abstract and does not
    * have an implementation at all.
    */
-  case class DeferredTypeTag(tparam: Symbol) extends MethodInfo {
+  case class TypeTagParam(tparam: Symbol) extends MethodInfo with Tag {
     override def toString = "is a type tag"
   }
 
@@ -109,7 +105,15 @@ trait MiniboxMethodInfo {
    * When the newly introduced symbol is abstract and does not
    * have an implementation at all.
    */
-  case class DeferredTypeTagImplementation(tparam: Symbol) extends MethodInfo {
-    override def toString = "is a type tag from an inherited trait"
+  case class DeferredTypeTag(tparam: Symbol) extends MethodInfo with Tag {
+    override def toString = "is a deferred type tag"
+  }
+
+  /**
+   * When the newly introduced symbol is abstract and does not
+   * have an implementation at all.
+   */
+  case class DeferredTypeTagImplementation(tparam: Symbol) extends MethodInfo with Tag {
+    override def toString = "is the type tag of an inherited trait"
   }
 }

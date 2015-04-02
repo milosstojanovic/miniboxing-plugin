@@ -5,7 +5,7 @@
 //  /    Y    \|  ||   |  \|  | | \_\ \(  <_> ) >    < |  ||   |  \ / /_/  >
 //  \____|__  /|__||___|  /|__| |___  / \____/ /__/\_ \|__||___|  / \___  /
 //          \/          \/          \/               \/         \/ /_____/
-// Copyright (c) 2012-2014 Scala Team, École polytechnique fédérale de Lausanne
+// Copyright (c) 2011-2015 Scala Team, École polytechnique fédérale de Lausanne
 //
 package miniboxing.plugin
 
@@ -18,6 +18,12 @@ trait MiniboxLogging {
   val global: Global
 
   import global._
+
+  def suboptimalCodeWarning(pos: Position, msg: String, isSymbolGenericAnnotated: Boolean = false, inLibrary: Boolean = false) = {
+      if (flag_strict_warnings && (pos != NoPosition) && !isSymbolGenericAnnotated)
+        if (!inLibrary || flag_strict_warnings_outside)
+          global.reporter.warning(pos, msg)
+  }
 
   def global_log(msg: => String) = if (settings.log.value.contains(phaseName)) global.log(msg)
   def log(msg: => Any) = if (flag_log) println(msg.toString) // TODO: Need to adapt tests to output miniboxing messages

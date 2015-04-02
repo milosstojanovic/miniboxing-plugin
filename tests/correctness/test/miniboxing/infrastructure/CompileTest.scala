@@ -20,12 +20,13 @@ class CompileTest(val code: String, flags: String, launch: String) extends Direc
     while (root == null) {
       val rand = scala.util.Random.nextLong()
       val rand_pos = if (rand < 0) -rand else rand
-      root = new JFile(System.getProperty("java.io.tmpdir") + "/" + "miniboxing-" + rand_pos)
+      val path = System.getProperty("java.io.tmpdir") + "/" + "miniboxing-" + rand_pos
+      root = new JFile(path)
       if (root.exists() && root.isDirectory())
         root = null
     }
     root.mkdirs()
-    root.deleteOnExit()
+    //root.deleteOnExit()
     root
   }
   override lazy val testPath = File(jfile)
@@ -37,23 +38,29 @@ class CompileTest(val code: String, flags: String, launch: String) extends Direc
   def compilationOutput(): String = {
     val ba = new ByteArrayOutputStream();
     val pa = new PrintStream(ba)
-    val pOut = Console.out
-    val pErr = Console.err
-    Console.setOut(pa)
-    Console.setErr(pa)
-    // compile the given file:
-    val result = compile()
-    // if necessary, reflectively launch the test execution:
-    if (launch != "") {
-      val args = launch.split(" ")
-      val loader = new URLClassLoader(Array(jfile.toURI().toURL()), this.getClass.getClassLoader)
-      val clazz = loader.loadClass(args(0))
-      val method = clazz.getMethod("main", classOf[Array[String]])
-      method.invoke(null, args.drop(1))
+    Console.withOut(pa) {
+      Console.withErr(pa) {
+        try {
+          // compile the given file:
+          val result = compile()
+          // if necessary, reflectively launch the test execution:
+          if (launch != "")
+            if (result) {
+              val args = launch.split(" ")
+              val loader = new URLClassLoader(Array(jfile.toURI().toURL()), this.getClass.getClassLoader)
+              val clazz = loader.loadClass(args(0))
+              val method = clazz.getMethod("main", classOf[Array[String]])
+              method.invoke(null, args.drop(1))
+            } else
+              println(s"Not executing $launch since compilation failed! :( scuze!")
+        } catch {
+          case t: Throwable =>
+            println("Failed to compile or execute: ")
+            t.printStackTrace()
+        }
+      }
     }
     pa.flush()
-    Console.setOut(pOut)
-    Console.setErr(pErr)
-   ba.toString
+    ba.toString
   }
 }

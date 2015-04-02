@@ -43,10 +43,12 @@ public class MiniboxConversionsDouble {
 //      return null;
 //    else
 //      return (T)minibox2box_deep(l, tag);
+//    throw new IllegalArgumentException("boxing");
     return (T)minibox2box_deep(l, tag);
   }
 
   private final static Object minibox2box_deep(double l, byte tag) {
+//    (new IllegalArgumentException("boxing")).printStackTrace();
     switch(tag) {
       case MiniboxConstants.FLOAT:
         return (float)l;
@@ -56,6 +58,7 @@ public class MiniboxConversionsDouble {
   }
 
   public final static <T> double box2minibox_tt(T a, byte tag) {
+//    (new IllegalArgumentException("boxing")).printStackTrace();
     if (a == null)
 //      return Double.MIN_VALUE;
       return 0d;

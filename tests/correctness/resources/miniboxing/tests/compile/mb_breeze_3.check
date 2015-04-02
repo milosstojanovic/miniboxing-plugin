@@ -1,9 +1,13 @@
 [Now checking: minibox-inject]
+[Now checking: minibox-bridge]
 [Not checkable: minibox-coerce]
+Miniboxing plugin warning: Optimizing `MbArray` is only possible if you allow the plugin to use both long and double encodings (remove `P:minibox:Yone-way` compiler option). `MbArray`-s will be generic and will box.
 [[syntax trees at end of            minibox-commit]] // newSource1.scala
 package miniboxing.tests.compile.bug38 {
   abstract trait Vector[@miniboxed E] extends Object;
   class Vector_J[Esp] extends Object with miniboxing.tests.compile.bug38.Vector[Esp] {
+    <paramaccessor> private[this] val miniboxing|tests|compile|bug38|Vector_J|E_TypeTag: Byte = _;
+    <paramaccessor> private[this] val size: Int = _;
     def <init>(miniboxing|tests|compile|bug38|Vector_J|E_TypeTag: Byte, size: Int): miniboxing.tests.compile.bug38.Vector_J[Esp] = {
       Vector_J.super.<init>();
       ()
@@ -11,11 +15,10 @@ package miniboxing.tests.compile.bug38 {
     def <init>(miniboxing|tests|compile|bug38|Vector_J|E_TypeTag: Byte): miniboxing.tests.compile.bug38.Vector_J[Esp] = {
       Vector_J.this.<init>(miniboxing|tests|compile|bug38|Vector_J|E_TypeTag, 10);
       ()
-    };
-    <paramaccessor> private[this] val miniboxing|tests|compile|bug38|Vector_J|E_TypeTag: Byte = _;
-    <paramaccessor> private[this] val size: Int = _
+    }
   };
   class Vector_L[Esp] extends Object with miniboxing.tests.compile.bug38.Vector[Esp] {
+    <paramaccessor> private[this] val size: Int = _;
     def <init>(size: Int): miniboxing.tests.compile.bug38.Vector_L[Esp] = {
       Vector_L.super.<init>();
       ()
@@ -23,8 +26,7 @@ package miniboxing.tests.compile.bug38 {
     def <init>(): miniboxing.tests.compile.bug38.Vector_L[Esp] = {
       Vector_L.this.<init>(10);
       ()
-    };
-    <paramaccessor> private[this] val size: Int = _
+    }
   }
 }
 [Now checking: minibox-commit]

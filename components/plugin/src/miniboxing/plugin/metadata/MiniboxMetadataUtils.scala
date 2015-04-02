@@ -5,7 +5,7 @@
 //  /    Y    \|  ||   |  \|  | | \_\ \(  <_> ) >    < |  ||   |  \ / /_/  >
 //  \____|__  /|__||___|  /|__| |___  / \____/ /__/\_ \|__||___|  / \___  /
 //          \/          \/          \/               \/         \/ /_____/
-// Copyright (c) 2012-2014 Scala Team, École polytechnique fédérale de Lausanne
+// Copyright (c) 2011-2015 Scala Team, École polytechnique fédérale de Lausanne
 //
 // Authors:
 //    * Iulian Dragos
@@ -76,53 +76,87 @@ trait MiniboxMetadataUtils {
 
     def allAnyRefPSpec(clazz: Symbol): PartialSpec = clazz.typeParams.filter(_.isMiniboxAnnotated).map(t => (t, Boxed)).toMap
 
-    def fromType(tpe: TypeRef, owner: Symbol): PartialSpec = fromType(tpe, owner, Map.empty)
-    def fromType(tpe: TypeRef, owner: Symbol, pspec: PartialSpec): PartialSpec =
+    def fromType(pos: Position, tpe: TypeRef, owner: Symbol): PartialSpec = fromType(pos, tpe, owner, Map.empty)
+    def fromType(pos: Position, tpe: TypeRef, owner: Symbol, pspec: PartialSpec): PartialSpec =
       tpe match {
         case TypeRef(pre, sym, targs) =>
           val tparams = sym.info.typeParams
-          fromTargs(tparams, targs, owner, pspec)
+          fromTargs(pos, tparams, targs, owner, pspec)
       }
 
-    def fromTargs(tparams: List[Symbol], targs: List[Type], currentOwner: Symbol, pspec: PartialSpec = Map.empty): PartialSpec = {
+    def fromTargs(pos: Position, tparams: List[Symbol], targs: List[Type], currentOwner: Symbol, pspec: PartialSpec = Map.empty): PartialSpec = {
+      val instantiation = tparams zip targs
+      fromTargsAllTargs(pos, instantiation, currentOwner, pspec) collect {
+        case (tparam, spec) if metadata.miniboxedTParamFlag(tparam) => (tparam, spec)
+      }
+    }
 
-      def typeParametersFromOwnerChain(owner: Symbol = currentOwner): List[(Symbol, SpecInfo)] =
-        owner.ownerChain flatMap { sym =>
-          // for methods => normalization
-          // for classes => specialization
-          afterMiniboxInject(owner.info) // make sure it's specialized
-          if (sym.isMethod && !sym.typeParams.isEmpty) {
-            // NOTE: We could also rely on the method's specialization, but we rely on the
-            // assumption that a class' specialization is the one that dominates, else we
-            // would be messing up forwarders.
-            val localPSpec = metadata.getNormalLocalSpecialization(sym)
-            localPSpec.collect({ case (tp, spec) if spec != Boxed => (tp, spec)})
-          } else if (sym.isClass || sym.isTrait) {
-            val localPSpec = metadata.getClassLocalSpecialization(sym)
-            localPSpec.collect({ case (tp, spec) if spec != Boxed => (tp, spec)})
-          } else
-            Nil
-        }
+    def valueClassRepresentation(vclass: Symbol): Symbol = {
+      val FloatRepr = if (flag_two_way) DoubleClass else LongClass
+      vclass match {
+        case `UnitClass`    => LongClass
+        case `BooleanClass` => LongClass
+        case `ByteClass`    => LongClass
+        case `CharClass`    => LongClass
+        case `ShortClass`   => LongClass
+        case `IntClass`     => LongClass
+        case `LongClass`    => LongClass
+        case `FloatClass`   => FloatRepr
+        case `DoubleClass`  => FloatRepr
+      }
+    }
 
-      val mboxedTpars = typeParametersFromOwnerChain().toMap ++ pspec
-      val spec = (tparams zip targs) flatMap { (pair: (Symbol, Type)) =>
-        val FloatRepr = if (flag_two_way) DoubleClass else LongClass
-        pair match {
-          // case (2.3)
-          case (p, _) if !(metadata.miniboxedTParamFlag(p)) => None
-          case (p, `CharTpe`)    => Some((p, Miniboxed(LongClass)))
-          case (p, `IntTpe`)     => Some((p, Miniboxed(LongClass)))
-          case (p, `LongTpe`)    => Some((p, Miniboxed(LongClass)))
-          case (p, `FloatTpe`)   => Some((p, Miniboxed(FloatRepr)))
-          case (p, `DoubleTpe`)  => Some((p, Miniboxed(FloatRepr)))
-          // case (2.1)
-          // case (2.2)
-          // case (2.4)
-          case (p, TypeRef(_, tpar, _)) =>
+    def specializationsFromOwnerChain(owner: Symbol): List[(Symbol, SpecInfo)] =
+      owner.ownerChain flatMap { sym =>
+        // for methods => normalization
+        // for classes => specialization
+        afterMiniboxInject(owner.info) // make sure it's specialized
+        if (sym.isMethod && !sym.typeParams.isEmpty) {
+          // NOTE: We could also rely on the method's specialization, but we rely on the
+          // assumption that a class' specialization is the one that dominates, else we
+          // would be messing up forwarders.
+          val localPSpec = metadata.getNormalLocalSpecialization(sym)
+          localPSpec
+        } else if (sym.isClass || sym.isTrait) {
+          val localPSpec = metadata.getClassLocalSpecialization(sym)
+          localPSpec
+        } else
+          Nil
+      }
+
+    def fromTargsAllTargs(pos: Position, instantiation: List[(Symbol, Type)], currentOwner: Symbol, pspec: PartialSpec = Map.empty): PartialSpec = {
+
+      def primitive(p: Symbol, spec: SpecInfo): (Symbol, SpecInfo) = {
+        if (!metadata.miniboxedTParamFlag(p))
+          suboptimalCodeWarning(pos, s"The ${p.owner.tweakedFullString} would benefit from miniboxing type parameter ${p.nameString}, since it is instantiated by a primitive type.", p.isGenericAnnotated, inLibrary = (p.sourceFile == null))
+        (p, spec)
+      }
+
+      val mboxedTpars = specializationsFromOwnerChain(currentOwner).toMap ++ pspec
+      val spec = instantiation map { (pair: (Symbol, Type)) =>
+        (pair._1, pair._2.withoutAnnotations) match {
+          case (p, tpe) if ScalaValueClasses.contains(tpe.typeSymbol) => primitive(p, Miniboxed(valueClassRepresentation(tpe.typeSymbol)))
+          case (p, TypeRef(_, tpar, _)) if tpar.deSkolemize.isTypeParameter =>
             mboxedTpars.get(tpar.deSkolemize) match {
-              case Some(spec: SpecInfo) => Some((p, spec))
-              case None                 => Some((p, Boxed))
+              case Some(spec: SpecInfo) =>
+                if (!metadata.miniboxedTParamFlag(p) && spec != Boxed)
+                  suboptimalCodeWarning(pos, s"The ${p.owner.tweakedFullString} would benefit from miniboxing type parameter ${p.nameString}, since it is instantiated by miniboxed type parameter ${tpar.nameString.stripSuffix("sp")} of ${metadata.getStem(tpar.owner).tweakedToString}.", p.isGenericAnnotated, inLibrary = (p.sourceFile == null))
+                (p, spec)
+              case None if metadata.miniboxedTParamFlag(tpar.deSkolemize) && metadata.isClassStem(tpar.deSkolemize.owner) =>
+                if (metadata.miniboxedTParamFlag(p))
+                  suboptimalCodeWarning(pos, s"""The following code could benefit from miniboxing specialization (the reason was explained before).""", p.isGenericAnnotated)
+                (p, Boxed)
+              case None =>
+                if (metadata.miniboxedTParamFlag(p))
+                  suboptimalCodeWarning(pos, s"""The following code could benefit from miniboxing specialization if the type parameter ${tpar.name} of ${tpar.owner.tweakedToString} would be marked as "@miniboxed ${tpar.name}" (it would be used to instantiate miniboxed type parameter ${p.name} of ${p.owner.tweakedToString})""", p.isGenericAnnotated)
+                (p, Boxed)
             }
+          case (p, tpe) if tpe <:< AnyRefTpe =>
+            (p, Boxed)
+          case (p, tpe)          =>
+            if (metadata.miniboxedTParamFlag(p))
+              suboptimalCodeWarning(pos, s"""Using the type argument "$tpe" for the miniboxed type parameter ${p.name} of ${p.owner.tweakedToString} is not specific enough, as it could mean either a primitive or a reference type. Although ${p.owner.tweakedToString} is miniboxed, it won't benefit from specialization:""", p.isGenericAnnotated)
+            (p, Boxed)
         }
       }
       spec.toMap
@@ -177,11 +211,11 @@ trait MiniboxMetadataUtils {
   }
 
   object parentClasses {
-    class SpecializeTypeMap(current: Symbol) extends TypeMap {
+    class SpecializeTypeMap(pos: Position, current: Symbol) extends TypeMap {
       import metadata._
 
       // TODO: Take owneship chain into account!
-      def extractPSpec(tref: TypeRef) = PartialSpec.fromType(tref, current.owner)
+      def extractPSpec(tref: TypeRef) = PartialSpec.fromType(pos, tref, current.owner)
 
       override def apply(tp: Type): Type = tp match {
         case tref@TypeRef(pre, sym, args) if args.nonEmpty && classOverloads.isDefinedAt(sym)=>
@@ -200,10 +234,10 @@ trait MiniboxMetadataUtils {
       }
     }
 
-    def specializeParentsTypeMapForGeneric(current: Symbol) = new SpecializeTypeMap(current)
+    def specializeParentsTypeMapForGeneric(pos: Position, current: Symbol) = new SpecializeTypeMap(pos, current)
 
-    def specializeParentsTypeMapForSpec(spec: Symbol, origin: Symbol, pspec: PartialSpec) = new SpecializeTypeMap(spec) {
-      override def extractPSpec(tref: TypeRef) = PartialSpec.fromType(tref, spec.owner, pspec)
+    def specializeParentsTypeMapForSpec(pos: Position, spec: Symbol, origin: Symbol, pspec: PartialSpec) = new SpecializeTypeMap(pos, spec) {
+      override def extractPSpec(tref: TypeRef) = PartialSpec.fromType(pos, tref, spec.owner, pspec)
       override def apply(tp: Type): Type = tp match {
         case tref@TypeRef(pre, sym, args) if sym == origin =>
           tref
@@ -252,8 +286,8 @@ trait MiniboxMetadataUtils {
      */
     def isSpecializableClass(clazz: Symbol) =
       clazz.isClass &&
-      !clazz.typeParams.isEmpty &&
-      clazz.typeParams.exists(s => new RichSym(s).isMiniboxAnnotated)
+      clazz.hasMiniboxedTypeParameters &&
+      !clazz.typeParams.isEmpty
 
     // shamelessly stolen from specialization
     def specializableClass(tp: Type): Boolean = (
@@ -262,18 +296,46 @@ trait MiniboxMetadataUtils {
       && !tp.typeSymbol.isPackageClass
     )
 
-    def specializableMethodInClass(clazz: Symbol, mbr: Symbol): Boolean = (
-         (!mbr.isMethod
-      || !mbr.isSynthetic)
-      && ((mbr.alias == NoSymbol)
-      || metadata.memberOverloads.isDefinedAt(mbr.alias))
-    )
+    def specializableMethodInClass(clazz: Symbol, mbr: Symbol): Boolean = {
+      // TODO: Make this invariant stand (it's violated by normalization)
+      // assert(clazz.isClass || clazz.isModule || clazz.isTrait, clazz.defString)
+
+      // The synthetic canEqual method generated for case classes is incorrect, as the existential type
+      // is not correctly transformed by the asSeenFrom TypeMap:
+      //
+      //  $ cat gh-bug-130.scala
+      //  package minboxing.tests.compile.bug130
+      //
+      //  case class C[@miniboxed T]()
+      //
+      //  class D[@miniboxed T] {
+      //    def canEqual(`x$1`: Any): Boolean = `x$1`.`$isInstanceOf`[D[_]]
+      //  }
+      //
+      //  $ ../mb-scalac gh-bug-129.scala -Xprint:interop-commit,minibox-commit 2>&1 | grep "def canEqual"
+      //     <synthetic> def canEqual(x$1: Any): Boolean = x$1.$isInstanceOf[miniboxing.tests.compile.bug129.C[_]]();
+      //    def canEqual(x$1: Any): Boolean = x$1.isInstanceOf[miniboxing.tests.compile.bug129.D[_]]()
+      //
+      //    <synthetic> def canEqual(x$1: Any): Boolean;
+      //    <synthetic> def canEqual(x$1: Any): Boolean = x$1.$isInstanceOf[miniboxing.tests.compile.bug129.C[Tsp]]();
+      //    <synthetic> def canEqual(x$1: Any): Boolean = x$1.$isInstanceOf[miniboxing.tests.compile.bug129.C[Tsp]]();
+      //    <synthetic> def canEqual(x$1: Any): Boolean = x$1.$isInstanceOf[miniboxing.tests.compile.bug129.C[Tsp]]();
+      //    def canEqual(x$1: Any): Boolean
+      //    def canEqual(x$1: Any): Boolean = x$1.isInstanceOf[miniboxing.tests.compile.bug129.D[_]]()
+      //    def canEqual(x$1: Any): Boolean = x$1.isInstanceOf[miniboxing.tests.compile.bug129.D[_]]()
+      //    def canEqual(x$1: Any): Boolean = x$1.isInstanceOf[miniboxing.tests.compile.bug129.D[_]]()
+      //
+      // For more details see bugs #129 and #130, which give the entire context
+      val isCanEqual = (mbr.name.toString == "canEqual") && mbr.isMethod && clazz.isCase && mbr.isSynthetic
+                     // mbr.isMethod && mbr.isSynthetic
+
+      !isCanEqual
+    }
 
     def normalizableMethodInMethod(sym: Symbol): Boolean = (
          sym.isMethod
       && sym.hasMiniboxedTypeParameters
       && sym.owner.isMethod
     )
-
   }
 }

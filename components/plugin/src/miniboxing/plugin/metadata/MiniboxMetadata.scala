@@ -5,7 +5,7 @@
 //  /    Y    \|  ||   |  \|  | | \_\ \(  <_> ) >    < |  ||   |  \ / /_/  >
 //  \____|__  /|__||___|  /|__| |___  / \____/ /__/\_ \|__||___|  / \___  /
 //          \/          \/          \/               \/         \/ /_____/
-// Copyright (c) 2012-2014 Scala Team, École polytechnique fédérale de Lausanne
+// Copyright (c) 2011-2015 Scala Team, École polytechnique fédérale de Lausanne
 //
 // Authors:
 //    * Vlad Ureche
@@ -22,7 +22,7 @@ trait MiniboxMetadata {
   import definitions._
   import scala.collection.immutable
 
-  trait metadata {
+  object metadata {
 
     val miniboxedMemberFlag = mutable.Set.empty[Symbol]
     val miniboxedTParamFlag = mutable.Set.empty[Symbol]
@@ -55,10 +55,6 @@ trait MiniboxMetadata {
      * Additionally:
      *  for C_L/C_J: T --> Tsp mapping in
      */
-
-    /** Miniboxed classes and traits become traits with subclasses/subtraits as specialized variants
-     *  This set contains the traits that were transformed. */
-    val classStemTraitFlag = mutable.Set.empty[Symbol]
 
     val classOverloads = new mutable.HashMap[Symbol, mutable.HashMap[PartialSpec, Symbol]]
 
@@ -103,7 +99,7 @@ trait MiniboxMetadata {
      *  correspondence. These are local type tags, used in each member. */
     val localTypeTags = new mutable.HashMap[Symbol, mutable.Map[Symbol, Symbol]]
 
-    /** TODO */
+    /** Type tags for normalized methods */
     val normalTypeTags = new mutable.HashMap[Symbol, mutable.Map[Symbol, Symbol]]
 
     /** A list of members that represent type tags *inherited* from traits -- unlike type tags in a class,
@@ -122,13 +118,12 @@ trait MiniboxMetadata {
     /** A list of dummy constructors necessary to satisfy the duplicator */
     val dummyConstructors = mutable.Set[/* dummy constructor */ Symbol]()
 
-    /** The set of members that provide the template to copy and specialize by the specialized overloads */
+    /** Those members that will be duplicated and specialized to produce the muliple overloads */
     val templateMembers = mutable.Set[Symbol]()
-  }
 
+    /** Stem class can have a class parent (see bug #162) */
+    val stemClassParent = mutable.HashMap[Symbol, Symbol]()
 
-  /** Contains the metadata and accessors */
-  object metadata extends metadata {
 
     // Accessors:
 
@@ -169,7 +164,7 @@ trait MiniboxMetadata {
 
     def getMemberStem(variant: Symbol) = {
       assert(variant.isMethod || (variant.isTerm && !variant.isMethod), s"Not a method/field: ${variant.defString}")
-      classStem.getOrElse(variant, NoSymbol)
+      memberStem.getOrElse(variant, NoSymbol)
     }
 
     def isMemberStem(variant: Symbol) =
@@ -213,6 +208,40 @@ trait MiniboxMetadata {
 
     def memberHasNormalizations(stem: Symbol): Boolean =
       normalOverloads.get(stem).map(_.size).getOrElse(1) > 1
+
+    // Resiliant ones:
+    def getStem(sym: Symbol) =
+      if (sym.isTrait || sym.isClass)
+        getClassStem(sym).orElse(sym)
+      else if (sym.isMethod) {
+        val sym0 = sym
+        val sym1 = getNormalStem(sym0).orElse(sym0) // normalized member => normalization stem member
+        val sym2 = getMemberStem(sym1).orElse(sym1) // member in specialized class => member is stem class
+        val sym3 = getMemberStem(sym2).orElse(sym2) // specialized member in stem => original member in stem
+        sym3
+      } else
+        sym
+
+    // Class state
+    def getClassState(cls: Symbol): ClassState = {
+      afterMiniboxInject(cls.info)
+      val isStem = isClassStem(cls)
+      val isSpecialized = getClassStem(cls) != NoSymbol
+      val state =
+        if (!isSpecialized)
+          NotSpecialized
+        else
+          if (isStem)
+            SpecializedStem
+          else
+            SpecializedVariant
+      state
+    }
   }
+
+  abstract class ClassState
+  case object SpecializedStem extends ClassState
+  case object SpecializedVariant extends ClassState
+  case object NotSpecialized extends ClassState
 }
 

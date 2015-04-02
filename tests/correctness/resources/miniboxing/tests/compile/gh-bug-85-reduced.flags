@@ -1,1 +1,1 @@
--Xprint:cleanup -P:minibox:log
+-P:minibox:Ygeneric-constructor-code  -P:minibox:warn-off -Xprint:cleanup -P:minibox:log -P:minibox:Yone-way

@@ -73,7 +73,9 @@ Specializing trait Base23...
     def overrideMe_LJ(val S_TypeTag: Byte,t: Tsp,s: Ssp @storage[Long]): Tsp // is a forwarder to the specialized member
   }
 [Now checking: minibox-inject]
+[Now checking: minibox-bridge]
 [Not checkable: minibox-coerce]
+Miniboxing plugin warning: Optimizing `MbArray` is only possible if you allow the plugin to use both long and double encodings (remove `P:minibox:Yone-way` compiler option). `MbArray`-s will be generic and will box.
 [[syntax trees at end of            minibox-commit]] // newSource1.scala
 package miniboxing.tests.compile {
   abstract trait Base21[@miniboxed T, S] extends Object {
@@ -137,15 +139,15 @@ package miniboxing.tests.compile {
     def overrideMe_LJ(S_TypeTag: Byte, t: Tsp, s: Long): Tsp = Base23_LL.this.overrideMe(t, MiniboxConversions.this.minibox2box[Ssp](s, S_TypeTag))
   };
   class LongIsBase21Base22andBase23 extends Object with miniboxing.tests.compile.Base21_J[Long,Long] with miniboxing.tests.compile.Base22_J[Long,Long] with miniboxing.tests.compile.Base23_JJ[Long,Long] {
+    def miniboxing|tests|compile|Base21_J|T_TypeTag(): Byte = 6;
+    def miniboxing|tests|compile|Base22_J|T_TypeTag(): Byte = 6;
+    def miniboxing|tests|compile|Base23_JJ|S_TypeTag(): Byte = 6;
+    def miniboxing|tests|compile|Base23_JJ|T_TypeTag(): Byte = 6;
     def <init>(): miniboxing.tests.compile.LongIsBase21Base22andBase23 = {
       LongIsBase21Base22andBase23.super.<init>();
       ()
     };
     override def overrideMe(t: Long, s: Long): Long = MiniboxConversions.this.minibox2long(LongIsBase21Base22andBase23.this.overrideMe_JJ(6, 6, MiniboxConversions.this.long2minibox(t), MiniboxConversions.this.long2minibox(s)));
-    def miniboxing|tests|compile|Base21_J|T_TypeTag(): Byte = 6;
-    def miniboxing|tests|compile|Base22_J|T_TypeTag(): Byte = 6;
-    def miniboxing|tests|compile|Base23_JJ|S_TypeTag(): Byte = 6;
-    def miniboxing|tests|compile|Base23_JJ|T_TypeTag(): Byte = 6;
     override def overrideMe_JJ(T_TypeTag: Byte, S_TypeTag: Byte, t: Long, s: Long): Long = MiniboxConversions.this.long2minibox(scala.this.Predef.???())
   }
 }

@@ -1,3 +1,4 @@
+Miniboxing plugin warning: Optimizing `MbArray` is only possible if you allow the plugin to use both long and double encodings (remove `P:minibox:Yone-way` compiler option). `MbArray`-s will be generic and will box.
 [[syntax trees at end of            minibox-commit]] // newSource1.scala
 package miniboxing.tests.compile.bug53 {
   object Test1 extends Object {
@@ -7,11 +8,11 @@ package miniboxing.tests.compile.bug53 {
     };
     abstract trait BUG53[@miniboxed T] extends Object;
     class BUG53_J[Tsp] extends Object with miniboxing.tests.compile.bug53.Test1.BUG53[Tsp] {
+      <paramaccessor> private[this] val miniboxing|tests|compile|bug53|Test1|BUG53_J|T_TypeTag: Byte = _;
       def <init>(miniboxing|tests|compile|bug53|Test1|BUG53_J|T_TypeTag: Byte): miniboxing.tests.compile.bug53.Test1.BUG53_J[Tsp] = {
         BUG53_J.super.<init>();
         ()
-      };
-      <paramaccessor> private[this] val miniboxing|tests|compile|bug53|Test1|BUG53_J|T_TypeTag: Byte = _
+      }
     };
     class BUG53_L[Tsp] extends Object with miniboxing.tests.compile.bug53.Test1.BUG53[Tsp] {
       def <init>(): miniboxing.tests.compile.bug53.Test1.BUG53_L[Tsp] = {

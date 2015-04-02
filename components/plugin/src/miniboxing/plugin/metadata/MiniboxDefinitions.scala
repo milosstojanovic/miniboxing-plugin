@@ -5,7 +5,7 @@
 //  /    Y    \|  ||   |  \|  | | \_\ \(  <_> ) >    < |  ||   |  \ / /_/  >
 //  \____|__  /|__||___|  /|__| |___  / \____/ /__/\_ \|__||___|  / \___  /
 //          \/          \/          \/               \/         \/ /_____/
-// Copyright (c) 2012-2014 Scala Team, École polytechnique fédérale de Lausanne
+// Copyright (c) 2011-2015 Scala Team, École polytechnique fédérale de Lausanne
 //
 // Authors:
 //    * Vlad Ureche
@@ -63,11 +63,23 @@ trait MiniboxDefinitions {
     StorageSym setInfoAndEnter PolyType(List(TypeParamSym), ClassInfoType(List(AnnotationTpe, TypeConstrTpe), newScope, StorageSym))
     StorageSym
   }
+  
+  lazy val GenericClass = rootMirror.getRequiredClass("scala.generic")
+
+//  lazy val MangledNameClass = {
+//    val AnnotationName = "scala.annotation.Annotation"
+//    val AnnotationTpe = rootMirror.getRequiredClass(AnnotationName).tpe
+//
+//    val MangledNameName = newTypeName("mangled")
+//    val MangledNameSym = ScalaPackageClass.newClassSymbol(MangledNameName, NoPosition, 0L)
+//    MangledNameSym setInfoAndEnter ClassInfoType(List(AnnotationTpe), newScope, MangledNameSym)
+//    MangledNameSym
+//  }
 
   // artificially created marker methods:
 
   def withStorage(tpar: Symbol, repr: Symbol) =
-    tpar.tpeHK withAnnotation AnnotationInfo(appliedType(StorageClass.tpe, List(repr.tpeHK)), Nil, Nil)
+    tpar.tpeHK withAnnotation AnnotationInfo(appliedType(PolyType(StorageClass.typeParams, StorageClass.tpe), List(repr.tpeHK)), Nil, Nil)
 
   //   def marker_minibox2box[T, St](t: T @storage[St]): T
   lazy val marker_minibox2box =
@@ -146,13 +158,21 @@ trait MiniboxDefinitions {
   }
   def x2minibox_long: Map[Symbol, Symbol] =
     Map(
+//      UnitClass ->    definitions.getMember(ConversionsObjectSymbol, newTermName("unit2minibox")),
+      BooleanClass -> definitions.getMember(ConversionsObjectSymbol, newTermName("boolean2minibox")),
+      ByteClass ->    definitions.getMember(ConversionsObjectSymbol, newTermName("byte2minibox")),
       CharClass ->    definitions.getMember(ConversionsObjectSymbol, newTermName("char2minibox")),
+      ShortClass ->   definitions.getMember(ConversionsObjectSymbol, newTermName("short2minibox")),
       IntClass ->     definitions.getMember(ConversionsObjectSymbol, newTermName("int2minibox")),
       LongClass ->    definitions.getMember(ConversionsObjectSymbol, newTermName("long2minibox"))
     )
   def minibox2x_long: Map[Symbol, Symbol] =
     Map(
+//      UnitClass ->    definitions.getMember(ConversionsObjectSymbol, newTermName("minibox2unit")),
+      BooleanClass -> definitions.getMember(ConversionsObjectSymbol, newTermName("minibox2boolean")),
+      ByteClass ->    definitions.getMember(ConversionsObjectSymbol, newTermName("minibox2byte")),
       CharClass ->    definitions.getMember(ConversionsObjectSymbol, newTermName("minibox2char")),
+      ShortClass ->   definitions.getMember(ConversionsObjectSymbol, newTermName("minibox2short")),
       IntClass ->     definitions.getMember(ConversionsObjectSymbol, newTermName("minibox2int")),
       LongClass ->    definitions.getMember(ConversionsObjectSymbol, newTermName("minibox2long"))
     )
@@ -197,13 +217,18 @@ trait MiniboxDefinitions {
 
   // direct conversions
 
-  lazy val standardTypeTagTrees = Map(
+  lazy val standardTypeTagTrees = Map[Symbol, Tree](
+      UnitClass ->    Literal(Constant(UNIT)),
+      BooleanClass -> Literal(Constant(BOOLEAN)),
+      ByteClass ->    Literal(Constant(BYTE)),
       CharClass ->    Literal(Constant(CHAR)),
+      ShortClass ->   Literal(Constant(SHORT)),
       IntClass ->     Literal(Constant(INT)),
       LongClass ->    Literal(Constant(LONG)),
       DoubleClass ->  Literal(Constant(DOUBLE)),
       FloatClass ->   Literal(Constant(FLOAT)),
-      NothingClass -> Literal(Constant(REFERENCE))
+      NothingClass -> Literal(Constant(REFERENCE)),
+      NullClass ->    Literal(Constant(REFERENCE))
     )
 
   // Manifest's newArray
@@ -211,7 +236,7 @@ trait MiniboxDefinitions {
 
   def storageType(tparam: Symbol, spec: SpecInfo): Type = {
     val Miniboxed(repr) = spec
-    tparam.tpe.withAnnotations(List(Annotation.apply(appliedType(StorageClass.tpe, List(repr.tpeHK)), Nil, ListMap.empty)))
+    withStorage(tparam, repr)
   }
 
   // filled in from outside
